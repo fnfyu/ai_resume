@@ -11,20 +11,23 @@ import org.apache.poi.hwpf.HWPFDocument;
 import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
 public class ResumeService {
     private final ResumeMapper resumeMapper;
 
-    private final String UPLOAD_DIR = "uploads/";
+    @Value("${file.upload.dir}")
+    private String UPLOAD_DIR;
 
-    public String saveFileAndParseText(Long user_id, MultipartFile file) throws Exception {
+    public String saveFileAndParseText(Long user_id, MultipartFile file)  {
         //确保文件存在
         File dir=new File(UPLOAD_DIR);
         if (!dir.exists()) dir.mkdirs();
@@ -32,7 +35,11 @@ public class ResumeService {
         //保存文件
         String file_name = System.currentTimeMillis()+"_"+file.getOriginalFilename();
         File dest = new File(dir, file_name);
-        file.transferTo(dest);
+        try {
+            file.transferTo(dest);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         Resume resume = new Resume();
         resume.setUser_id(user_id);
@@ -40,8 +47,13 @@ public class ResumeService {
         resume.setFile_path(dest.getAbsolutePath());
         resumeMapper.insert(resume);
 
-        return parseFile(dest);
+        try {
+            return parseFile(dest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
 
     private String parseFile(File file) throws Exception {
         String name=file.getName().toLowerCase();
