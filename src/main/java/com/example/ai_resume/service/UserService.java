@@ -1,32 +1,39 @@
 package com.example.ai_resume.service;
 
 import com.example.ai_resume.entity.User;
-import com.example.ai_resume.repository.UserRepository;
+import com.example.ai_resume.repository.UserMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+
+@RequiredArgsConstructor
 @Service
 public class UserService {
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    private final BCryptPasswordEncoder bCryptPasswordEncoder=new BCryptPasswordEncoder();
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    public boolean register(String username, String password) {
+        if (userMapper.findByUsername(username) != null){
+            return false;
+        }
 
-    public User register(String username, String password) {
         User user = new User();
         user.setUsername(username);
-        user.setPassword(password);
+
+        user.setPassword(bCryptPasswordEncoder.encode(password));
         user.setRole("USER");
-        return userRepository.save(user);
+        return  userMapper.insert(user);
+
     }
 
     public User login(String username,String password){
-        User user =userRepository.findByUsername(username).
-                orElseThrow(()-> new RuntimeException("用户不存在"));
-
-        if (!user.getPassword().equals(password))
-            throw new RuntimeException("密码错误");
-
+        User user = userMapper.findByUsername(username);
+        if(user==null){
+            return null;
+        }
+        if (!bCryptPasswordEncoder.matches(password,user.getPassword()))
+            return null;
         return user;
     }
 }

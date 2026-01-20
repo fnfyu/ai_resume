@@ -1,9 +1,14 @@
 package com.example.ai_resume.util;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class JwtUtil {
     private static final String SECRET = "s-e-c-r-e-t-k-e-y-ai_resume_secret_key";//私钥
@@ -16,5 +21,34 @@ public class JwtUtil {
                 setExpiration(new Date(System.currentTimeMillis()+EXPIRE_TIME)).//设置过期时间
                 signWith(Keys.hmacShaKeyFor(SECRET.getBytes())).//数字签名 保证安全
                 compact();
+    }
+
+    public static Map<String,Object> decodeToken(String token) {
+        Map<String,Object> map=new HashMap<>();
+        try {
+            Claims claims = Jwts.parser().
+                    verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes())).
+                    build().parseSignedClaims(token).
+                    getPayload();
+            String username=claims.getSubject();
+            Long userID=claims.get("userID",Long.class);
+            map.put("success",true);
+            map.put("userID",userID);
+            map.put("username",username);
+
+        } catch (ExpiredJwtException e) {
+            map.put("success",false);
+            map.put("error","登录已过期，请重新登录");
+        }
+        catch (JwtException e) {
+            map.put("success",false);
+            map.put("error","无效的Token");
+        }catch (Exception e) {
+            map.put("success",false);
+            map.put("error","解析Token时发生未知错误");
+        }
+
+        return map;
+
     }
 }
