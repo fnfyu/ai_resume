@@ -6,11 +6,13 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("resume")
-public class Resume {
-    @TableId(type = IdType.AUTO)
+@TableName("match_result")
+public class MatchResult {
+    @TableId(type= IdType.AUTO)
     private Long id;
-    private Long user_id;
-    private String file_name;
-    private String file_path;
+    private Long resume_id;
+    private Long job_id;
+    private int score;
+    private String skills;
+
 }

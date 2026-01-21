@@ -19,11 +19,11 @@ public class ResumeController {
     public Map<String, Object> upload(@RequestParam("file") MultipartFile file,
                                       HttpServletRequest request) {
         Map<String, Object> result = new HashMap<>();
-        Long userId=(Long) request.getAttribute("user_id");
+        Long user_id=(Long) request.getAttribute("user_id");
         try {
-            String text =resumeService.saveFileAndParseText(userId,file);
+            Map<String,Object> ai_result =resumeService.uploadAndAnalyze(user_id,file);
             result.put("success", true );
-            result.put("text", text);
+            result.put("ai_result", ai_result);
         } catch (Exception e) {
             result.put("success", false);
             result.put("error", e.getMessage());

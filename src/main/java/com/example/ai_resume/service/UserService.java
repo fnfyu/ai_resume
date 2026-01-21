@@ -1,8 +1,10 @@
 package com.example.ai_resume.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.example.ai_resume.entity.User;
 import com.example.ai_resume.repository.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,21 +16,21 @@ public class UserService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder=new BCryptPasswordEncoder();
 
     public boolean register(String username, String password) {
-        if (userMapper.findByUsername(username) != null){
-            return false;
-        }
-
         User user = new User();
         user.setUsername(username);
 
         user.setPassword(bCryptPasswordEncoder.encode(password));
         user.setRole("USER");
-        return  userMapper.insert(user);
-
+        try {
+            return userMapper.insert(user) > 0;
+        }
+        catch(DuplicateKeyException e){
+            throw new DuplicateKeyException("用户已存在");
+        }
     }
 
     public User login(String username,String password){
-        User user = userMapper.findByUsername(username);
+        User user = userMapper.selectOne(Wrappers.<User>lambdaQuery().eq(User::getUsername,username));
         if(user==null){
             return null;
         }

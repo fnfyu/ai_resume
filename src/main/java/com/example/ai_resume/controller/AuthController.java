@@ -22,7 +22,12 @@ public class AuthController {
     public Map<String, Object> register(@RequestParam String username,
                          @RequestParam String password){
         Map<String,Object> res=new HashMap<>();
-        res.put("success",userService.register(username, password));
+        try{
+            res.put("success",userService.register(username, password));
+        } catch (Exception e) {
+            res.put("success", false);
+            res.put("error", e.getMessage());
+        }
         return res;
     }
 
