@@ -1,5 +1,6 @@
 package com.example.ai_resume.controller;
 
+import com.example.ai_resume.common.response.ApiResponse;
 import com.example.ai_resume.entity.User;
 import com.example.ai_resume.service.UserService;
 import com.example.ai_resume.util.JwtUtil;
@@ -19,28 +20,16 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/register")
-    public Map<String, Object> register(@RequestParam String username,
-                         @RequestParam String password){
-        Map<String,Object> res=new HashMap<>();
-        try{
-            res.put("success",userService.register(username, password));
-        } catch (Exception e) {
-            res.put("success", false);
-            res.put("error", e.getMessage());
-        }
-        return res;
+    public ApiResponse<User> register(@RequestParam String username,
+                                @RequestParam String password){
+        return ApiResponse.success(userService.register(username, password));
     }
 
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestParam String username,
+    public ApiResponse<String> login(@RequestParam String username,
                                       @RequestParam String password){
         User user=userService.login(username, password);
-        Map<String,Object> res=new HashMap<>();
-        if (user==null){
-            res.put("success",false);
-        }
-        res.put("success",true);
-        res.put("token",JwtUtil.generateToken(user.getId(), user.getUsername()));
-        return res;
+        return ApiResponse.success(JwtUtil.generateToken(user.getId(), user.getUsername()));
+
     }
 }

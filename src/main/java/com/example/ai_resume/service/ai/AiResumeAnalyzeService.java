@@ -1,18 +1,19 @@
 package com.example.ai_resume.service.ai;
 
+import com.example.ai_resume.common.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AiResumeAnalyzeService {
@@ -23,7 +24,13 @@ public class AiResumeAnalyzeService {
     @Value("${api.url}")
     private String API_URL;
 
-    public Map<String,Object> analyze(String resumeText) throws IOException {
+    public CompletableFuture<Map<String,Object>> analyzeAsyc(String text){
+        Map<String,Object> future=analyze(text);
+        return CompletableFuture.completedFuture(future);
+    }
+
+    @Async
+    public Map<String,Object> analyze(String resumeText)  {
         String prompt=buildPrompt(resumeText);
 
         // ===== 构造请求体 =====
@@ -37,33 +44,38 @@ public class AiResumeAnalyzeService {
         String json=objectMapper.writeValueAsString(body);
 
         // ===== HTTP 请求 =====
-        URL url=new URL(API_URL);
-        HttpURLConnection conn = null;
-        conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + API_KEY);
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
-        conn.getOutputStream().write(json.getBytes(StandardCharsets.UTF_8));
+        try {
+
+            URL url = new URL(API_URL);
+            HttpURLConnection conn = null;
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + API_KEY);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.getOutputStream().write(json.getBytes(StandardCharsets.UTF_8));
+
 
             // ===== 读取响应 =====
-        Map response = null;
-        try {
-            response = objectMapper.readValue(conn.getInputStream(), Map.class);
+            Map response = null;
+            try {
+                response = objectMapper.readValue(conn.getInputStream(), Map.class);
 
-        } catch (IOException e) {
-            {
-                // 读取阿里返回的错误 JSON
-                try (Scanner s = new Scanner(conn.getErrorStream(), StandardCharsets.UTF_8)) {
-                    String errorMsg = s.useDelimiter("\\A").hasNext() ? s.next() : "";
-                    throw new IOException(errorMsg);
+            } catch (IOException e) {
+                {
+                    // 读取阿里返回的错误 JSON
+                    try (Scanner s = new Scanner(conn.getErrorStream(), StandardCharsets.UTF_8)) {
+                        String errorMsg = s.useDelimiter("\\A").hasNext() ? s.next() : "";
+                        throw new BusinessException(errorMsg);
+                    }
                 }
             }
+            return response;
         }
-
-        return response;
-
+        catch (Exception e) {
+            throw new BusinessException(e.getMessage());
         }
+    }
 
 
     private String buildPrompt(String resumeText) {

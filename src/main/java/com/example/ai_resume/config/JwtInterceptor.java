@@ -17,17 +17,12 @@ public class JwtInterceptor implements HandlerInterceptor {
         if(auth!=null && auth.startsWith("Bearer ")){
             String token=auth.substring(7);
             Map<String,Object> map=JwtUtil.decodeToken(token);
-            success=(boolean)map.get("success");
-            if(success){
-                String username=(String)map.get("username");
+            String username=(String) map.get("username");
+            if(username!=null){
                 request.setAttribute("username",username);
                 Long user_id=(Long)map.get("user_id");
                 request.setAttribute("user_id",user_id);
             }
-            else {
-                ((HttpServletResponse)response).sendError(HttpServletResponse.SC_UNAUTHORIZED,map.get("error").toString());
-            }
-
         }
         else
             ((HttpServletResponse)response).sendError(HttpServletResponse.SC_UNAUTHORIZED,"请先登录");

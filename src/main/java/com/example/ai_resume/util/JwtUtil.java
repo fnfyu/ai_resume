@@ -1,5 +1,6 @@
 package com.example.ai_resume.util;
 
+import com.example.ai_resume.common.exception.BusinessException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -32,20 +33,15 @@ public class JwtUtil {
                     getPayload();
             String username=claims.getSubject();
             Long user_id=claims.get("user_id",Long.class);
-            map.put("success",true);
             map.put("user_id",user_id);
             map.put("username",username);
-
         } catch (ExpiredJwtException e) {
-            map.put("success",false);
-            map.put("error","登录已过期，请重新登录");
+            throw new BusinessException("登录已过期，请重新登录");
         }
         catch (JwtException e) {
-            map.put("success",false);
-            map.put("error","无效的Token");
+            throw new BusinessException("无效的Token");
         }catch (Exception e) {
-            map.put("success",false);
-            map.put("error","解析Token时发生未知错误");
+            throw new BusinessException("解析Token时发生未知错误");
         }
 
         return map;
