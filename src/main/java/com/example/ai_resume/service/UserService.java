@@ -19,14 +19,14 @@ public class UserService {
     public User register(String username, String password) {
         User user = new User();
         user.setUsername(username);
-
         user.setPassword(bCryptPasswordEncoder.encode(password));
         user.setRole("USER");
         try {
+            userMapper.insert(user);
             return user;
         }
         catch(DuplicateKeyException e){
-            throw new RuntimeException("用户已存在");
+            throw new BusinessException("用户已存在");
         }
     }
 

@@ -22,10 +22,12 @@ public class JwtInterceptor implements HandlerInterceptor {
                 request.setAttribute("username",username);
                 Long user_id=(Long)map.get("user_id");
                 request.setAttribute("user_id",user_id);
+                success=true;
             }
         }
-        else
-            ((HttpServletResponse)response).sendError(HttpServletResponse.SC_UNAUTHORIZED,"请先登录");
+        else {
+            ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "请先登录");
+        }
         return success;
     }
 }

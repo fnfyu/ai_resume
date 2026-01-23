@@ -1,6 +1,9 @@
 package com.example.ai_resume.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.example.ai_resume.common.enums.ResumeStatus;
 import com.example.ai_resume.common.exception.BusinessException;
+import com.example.ai_resume.common.response.ApiResponse;
 import com.example.ai_resume.entity.Resume;
 import com.example.ai_resume.repository.ResumeMapper;
 import com.example.ai_resume.service.ai.AiResumeAnalyzeService;
@@ -17,57 +20,67 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class ResumeService {
     private final ResumeMapper resumeMapper;
-    private final AiResumeAnalyzeService aiResumeAnalyzeService;
     private final StringRedisTemplate redisTemplate;
 
     @Value("${file.upload.dir}")
     private String UPLOAD_DIR;
 
-    public Map<String,Object>analyzeAndCache(Long resume_id, String text)  {
-        String key="resume_id"+resume_id;
-        String cached=(String) redisTemplate.opsForValue().get(key);
+    public void updateResult(Long resume_id,Map<String,Object> result,ResumeStatus status)  {
+        // 创建一个新的实体对象，只设置 ID 和需要更新的字段
+        Resume resume = new Resume();
+        resume.setId(resume_id);
+        resume.setAnalysisResult(result); // 此时会正确触发 JacksonTypeHandler
+        resume.setStatus(status);
 
-        if (cached!=null) {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(cached, Map.class);
-        }
-
-        Map<String,Object> map= null;
-        try {
-            map = aiResumeAnalyzeService.analyzeAsyc(text).get();
-        } catch (Exception e) {
-            throw new BusinessException(e.getMessage());
-        }
-        redisTemplate.opsForValue().
-                set(key,new ObjectMapper().writeValueAsString(map),1, TimeUnit.HOURS);
-
-        return map;
-
+        // 使用 updateById，MyBatis-Plus 会自动根据 ID 更新不为 null 的字段
+        resumeMapper.updateById(resume);
     }
 
-    public Map<String,Object> uploadAndAnalyze(Long userId, MultipartFile file)  {
-        String text=saveFileAndParseText(userId, file);
+//    public Map<String,Object>analyzeAndCache(Long resume_id, String text)  {
+//        String key="resume_id:"+resume_id;
+//        String cached=(String) redisTemplate.opsForValue().get(key);
+//
+//        if (cached!=null) {
+//            ObjectMapper mapper = new ObjectMapper();
+//            return mapper.readValue(cached, Map.class);
+//        }
+//
+//        Map<String,Object> map= null;
+//        try {
+//            map = aiResumeAnalyzeService.analyzeAsyc(text).get();
+//        } catch (Exception e) {
+//            throw new BusinessException(e.getMessage());
+//        }
+//        redisTemplate.opsForValue().
+//                set(key,new ObjectMapper().writeValueAsString(map),1, TimeUnit.HOURS);
+//
+//        return map;
+//
+//    }
+
+    public Long uploadAndAnalyze(Long userId, MultipartFile file)  {
+
         try {
-            return aiResumeAnalyzeService.analyzeAsyc(text).get();
+            Long resume_id=saveFileAndParseText(userId, file);
+            redisTemplate.opsForList().leftPush("resume_task_queue", String.valueOf(resume_id));
+            return resume_id;
         }
         catch (Exception e) {
             throw new BusinessException(e.getMessage());
         }
     }
 
-    public String saveFileAndParseText(Long user_id, MultipartFile file)  {
+    public Long saveFileAndParseText(Long user_id, MultipartFile file)  {
         //确保文件存在
         File dir=new File(UPLOAD_DIR);
         if (!dir.exists()) dir.mkdirs();
@@ -77,7 +90,7 @@ public class ResumeService {
         File dest = new File(dir, file_name);
         try {
             file.transferTo(dest);
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new BusinessException("服务器存储空间异常，请联系管理员或稍后重试");
         }
 
@@ -85,13 +98,16 @@ public class ResumeService {
         resume.setUser_id(user_id);
         resume.setFile_name(file.getOriginalFilename());
         resume.setFile_path(dest.getAbsolutePath());
-        resumeMapper.insert(resume);
+        resume.setStatus(ResumeStatus.PENDING);
 
         try {
-            return parseFile(dest);
+            resume.setRawText(parseFile(dest));
         } catch (Exception e) {
             throw new BusinessException("简历内容识别失败，请检查文件是否损坏或是否包含文本");
         }
+        resumeMapper.insert(resume);
+
+        return resume.getId();
     }
 
 
@@ -121,5 +137,18 @@ public class ResumeService {
         else {
             throw new BusinessException("不支持的文件类型");
         }
+    }
+
+    public List<String> getSkills(Long resume_id) {
+        Resume resume=resumeMapper.selectById(resume_id);
+
+        if(resume==null){
+            throw new BusinessException("未找到 "+resume_id +" 号简历信息");
+        }
+
+        if (resume.getStatus() != ResumeStatus.COMPLETED) {
+            throw new BusinessException("简历未分析完成，请稍后再试");
+        }
+        return (List<String>) resume.getAnalysisResult().get("skills");
     }
 }

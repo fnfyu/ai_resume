@@ -1,6 +1,11 @@
 package com.example.ai_resume.service.ai;
 
+import cn.hutool.json.JSONUtil;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.example.ai_resume.common.exception.BusinessException;
+import com.example.ai_resume.entity.Resume;
+import com.example.ai_resume.repository.ResumeMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -13,9 +18,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.concurrent.CompletableFuture;
 
 @Service
+@RequiredArgsConstructor
 public class AiResumeAnalyzeService {
 
     @Value("${api.key}")
@@ -24,13 +29,12 @@ public class AiResumeAnalyzeService {
     @Value("${api.url}")
     private String API_URL;
 
-    public CompletableFuture<Map<String,Object>> analyzeAsyc(String text){
-        Map<String,Object> future=analyze(text);
-        return CompletableFuture.completedFuture(future);
-    }
+    private final ResumeMapper resumeMapper;
 
-    @Async
-    public Map<String,Object> analyze(String resumeText)  {
+    public Map<String,Object> analyze(Long resume_id)  {
+        Resume resume= resumeMapper.selectById(resume_id);
+
+        String resumeText=resume.getRawText();
         String prompt=buildPrompt(resumeText);
 
         // ===== 构造请求体 =====
@@ -70,7 +74,7 @@ public class AiResumeAnalyzeService {
                     }
                 }
             }
-            return response;
+            return JSONUtil.parseObj(((Map)response.get("output")).get("text")).toBean(Map.class);
         }
         catch (Exception e) {
             throw new BusinessException(e.getMessage());
@@ -85,6 +89,7 @@ public class AiResumeAnalyzeService {
         仅返回一个标准的 JSON 字符串，不要包含任何解释性文字、不要包含 Markdown 代码块标记（如 ```json）。
         skills 字段应包含编程语言、框架、工具等核心关键词。
         projects 数组中，tech 字段需识别该项目使用的具体技术栈，desc 需简洁总结项目职责。
+        summary 字段需识别对该简历的大致总结
         如果简历中缺失某项内容，对应字段返回空数组 [] 或空字符串 ""，严禁虚构。
         保持简历原始语言。
         JSON 结构模板：
