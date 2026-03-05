@@ -31,6 +31,7 @@ public class MatchService {
         mr.setJob_id(job_id);
         mr.setScore(res.getScore());
         String matchedSkills=String.join(",",res.getMatched_skills());
+        mr.setSkills(matchedSkills);
         matchResultMapper.insert(mr);
 
         return res;
