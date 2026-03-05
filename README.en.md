@@ -8,7 +8,7 @@ AI Resume is a full-stack resume management solution that leverages artificial i
 
 ## Technology Stack
 
-- **Backend Framework**: Spring Boot 2.x  
+- **Backend Framework**: Spring Boot 4.0.1  
 - **Database**: MySQL + MyBatis-Plus  
 - **Caching**: Redis (used for task queue)  
 - **Authentication**: JWT  
@@ -59,9 +59,9 @@ ai_resume/
 
 ### Prerequisites
 
-- JDK 1.8+  
+- JDK 21+  
 - Maven 3.x  
-- MySQL 5.7+  
+- MySQL 6.0+  
 - Redis 3.x+  
 
 ### Configuration
