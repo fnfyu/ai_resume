@@ -61,9 +61,9 @@ ai_resume/
 
 ### 环境要求
 
-- JDK 1.8+
+- JDK 21+
 - Maven 3.x
-- MySQL 5.7+
+- MySQL 6.0+
 - Redis 3.x+
 
 ### 配置说明
